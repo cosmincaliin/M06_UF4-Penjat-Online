@@ -1,21 +1,58 @@
-// borjaMontseny & Cosmin Calin DAW2 M06 Dual
+// borjaMontseny & Cosmin Calin DAW2 M06
 
 // PENJAT ONLINE
-var opcio = confirm("El Penjat Online\n\n- Unir-se a una sala → Acceptar.\n\n- Crear una sala → Cancelar.");
+var opcio = confirm("El Penjat Online\n\n- Unir-se a una sala → Acceptar.\n\n- Crear una sala       → Cancelar.");
+
+var roomCode;
+var roomPassword = "XXX"; // No demanarem contrasenya, serà aquesta per defecte
+var jsonCreateGame;
+var joingame = {
+    "action": "infoGame",
+    "gameName": "" // Aquesta propietat s'omplirà amb el nom de la sala més endavant
+};
 
 if (opcio) {
-    // L'usuari ha escollit unir-se a una sala
-    // Aquí pots afegir la lògica per unir-te a una sala
-    console.log("L'usuari ha escollit unir-se a una sala.");
+    roomCode = prompt("Introdueix el nom de la sala a la qual et vols unir");
+    joinGame.gameName = roomCode;
+
+    // Realitzar la petició AJAX per unir-se a la sala
+    var xhrJoinGame = new XMLHttpRequest();
+    xhrJoinGame.open("POST", "https://penjat.codifi.cat", true);
+    xhrJoinGame.setRequestHeader("Content-Type", "application/json");
+    xhrJoinGame.onreadystatechange = function () {
+        if (xhrJoinGame.readyState === 4 && xhrJoinGame.status === 200) {
+            // La sol·licitud s'ha completat i la resposta està llesta
+            console.log("T'has unit a la sala " + roomCode + ".");
+            console.log(xhrJoinGame.responseText);
+            // Després de rebre la resposta
+        }
+    };
+    xhrJoinGame.send(JSON.stringify(joinGame));
+
 } else {
-    // L'usuari ha escollit crear una sala
-    // Aquí pots afegir la lògica per crear una sala
-    console.log("L'usuari ha escollit crear una sala.");
+    roomCode = prompt("Introdueix el nom de la sala que vols crear");
+    jsonCreateGame = JSON.stringify({
+        "action": "createGame",
+        "gameName": roomCode,
+        "gamePassword": roomPassword
+    });
+
+    // Realitzar la petició AJAX per crear la sala
+    var xhrCreateGame = new XMLHttpRequest();
+    xhrCreateGame.open("POST", "https://penjat.codifi.cat", true);
+    xhrCreateGame.setRequestHeader("Content-Type", "application/json");
+    xhrCreateGame.onreadystatechange = function () {
+        if (xhrCreateGame.readyState === 4 && xhrCreateGame.status === 200) {
+            // La sol·licitud s'ha completat i la resposta està llesta
+            console.log("La sol·licitud per crear la sala ha estat exitosa.");
+            console.log(xhrCreateGame.responseText);
+            // Després de rebre la resposta
+        }
+    };
+    xhrCreateGame.send(jsonCreateGame);
 }
 
-
 /* Estructura "constant" del joc */
-
 var gameConfig = {
     wordsToGuess: ["elefant", "criatura", "llapis", "maduixa"],
     numberOfLives: 5,
