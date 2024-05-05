@@ -1,242 +1,132 @@
-// borjaMontseny & Cosmin Calin DAW2 M06
+document.addEventListener("DOMContentLoaded", function () {
+    // Variables globals
+    var gameStatus = {}; // Definir la variable gameStatus aquí
 
-// PENJAT ONLINE
-var opcio = confirm("El Penjat Online\n\n- Unir-se a una sala → Acceptar.\n\n- Crear una sala       → Cancelar.");
+    // PENJAT ONLINE
+    var roomCode;
+    var roomPassword = "XXX"; // No demanarem contrasenya, serà aquesta per defecte
 
-var roomCode;
-var roomPassword = "XXX"; // No demanarem contrasenya, serà aquesta per defecte
-var jsonCreateGame;
-var joingame = {
-    "action": "infoGame",
-    "gameName": "" // Aquesta propietat s'omplirà amb el nom de la sala més endavant
-};
+    // Text de l'HTML que modificarem per saber si som Player1 o Player2
+    var clueText = document.getElementById("clue").getElementsByTagName("span")[0];
 
-if (opcio) {
-    roomCode = prompt("Introdueix el nom de la sala a la qual et vols unir");
-    joinGame.gameName = roomCode;
+    var opcio = confirm("El Penjat Online\n\n- Unir-se a una sala → Acceptar.\n\n- Crear una sala       → Cancelar.");
 
-    // Realitzar la petició AJAX per unir-se a la sala
-    var xhrJoinGame = new XMLHttpRequest();
-    xhrJoinGame.open("POST", "https://penjat.codifi.cat", true);
-    xhrJoinGame.setRequestHeader("Content-Type", "application/json");
-    xhrJoinGame.onreadystatechange = function () {
-        if (xhrJoinGame.readyState === 4 && xhrJoinGame.status === 200) {
-            // La sol·licitud s'ha completat i la resposta està llesta
-            console.log("T'has unit a la sala " + roomCode + ".");
-            console.log(xhrJoinGame.responseText);
-            // Després de rebre la resposta
-        }
-    };
-    xhrJoinGame.send(JSON.stringify(joinGame));
+    if (opcio) {
+        clueText.innerHTML = "P2";
+        roomCode = prompt("Sala on et vols unir");
 
-} else {
-    roomCode = prompt("Introdueix el nom de la sala que vols crear");
-    jsonCreateGame = JSON.stringify({
-        "action": "createGame",
-        "gameName": roomCode,
-        "gamePassword": roomPassword
-    });
+        // Realitzar la petició AJAX per unir-se a la sala
+        var xhrJoinGame = new XMLHttpRequest();
+        xhrJoinGame.open("POST", "https://penjat.codifi.cat", true);
+        xhrJoinGame.setRequestHeader("Content-Type", "application/json");
+        xhrJoinGame.onreadystatechange = function () {
+            if (xhrJoinGame.readyState === 4 && xhrJoinGame.status === 200) {
+                var jsonResponse = JSON.parse(xhrJoinGame.responseText);
+                console.log("T'has unit a la sala " + roomCode + " correctament.");
+                console.log(jsonResponse);
+                updateGameState(jsonResponse);
+            }
+        };
+        xhrJoinGame.send(JSON.stringify({ "action": "infoGame", "gameName": roomCode }));
 
-    // Realitzar la petició AJAX per crear la sala
-    var xhrCreateGame = new XMLHttpRequest();
-    xhrCreateGame.open("POST", "https://penjat.codifi.cat", true);
-    xhrCreateGame.setRequestHeader("Content-Type", "application/json");
-    xhrCreateGame.onreadystatechange = function () {
-        if (xhrCreateGame.readyState === 4 && xhrCreateGame.status === 200) {
-            // La sol·licitud s'ha completat i la resposta està llesta
-            console.log("La sol·licitud per crear la sala ha estat exitosa.");
-            console.log(xhrCreateGame.responseText);
-            // Després de rebre la resposta
-        }
-    };
-    xhrCreateGame.send(jsonCreateGame);
-}
+    } else {
+        clueText.innerHTML = "P1";
+        roomCode = prompt("Nom de la sala que vols crear");
 
-/* Estructura "constant" del joc */
-var gameConfig = {
-    wordsToGuess: ["elefant", "criatura", "llapis", "maduixa"],
-    numberOfLives: 5,
-}
+        // Realitzar la petició AJAX per crear la sala
+        var xhrCreateGame = new XMLHttpRequest();
+        xhrCreateGame.open("POST", "https://penjat.codifi.cat", true);
+        xhrCreateGame.setRequestHeader("Content-Type", "application/json");
+        xhrCreateGame.onreadystatechange = function () {
+            if (xhrCreateGame.readyState === 4 && xhrCreateGame.status === 200) {
+                console.log("La sala " + roomCode + " s'ha creat correctament");
+                console.log(xhrCreateGame.responseText);
+            }
+        };
+        xhrCreateGame.send(JSON.stringify({ "action": "createGame", "gameName": roomCode, "gamePassword": roomPassword }));
+    }
 
-/* Estructura per tenir controlat en tot moment l'estat del joc */
-var gameStatus = {
-    status: "playing",
-    lives: gameConfig.numberOfLives,
-    // Aquí ja escollim la paraula de forma aleatòria
-    wordToGuess: gameConfig.wordsToGuess[getRandomNumber(0, gameConfig.wordsToGuess.length - 1)].toUpperCase(),
-    wordCompleted: "",
-}
+    // Assignació de variables en carregar el DOM completament
+    var newGameButton = document.getElementById("new_game");
+    var letters = document.getElementById("letters");
+    letters.innerHTML = " ";
+    var livesText = document.getElementById("lives"); // Variable afegida per actualitzar les vides
+    var lives = 5; // Variable que emmagatzema la quantitat de vides
 
-// wordToGuess => "PAU" | wordCompleted => "_ _ _"
-for (let index = 0; index < gameStatus.wordToGuess.length; index++) {
-    gameStatus.wordCompleted += "_";
-}
-
-// variables per asignar listeners i elements del DOM
-var divInfo; // recuadre verd de missatge
-var msgWelcome; // missatge de benvinguda
-var msgGameSuccess; // joc finalitzat correctament
-var msgGameFail; // joc finalitzat sense vides
-var btnOk; // botó Continuar
-var livesText; // text del recuadre de vides
-var pressedKey; // tecla premuda
-var newGameButton; // botó NEW GAME -> Partida nova (refrescar)
-var clueBox; // recuadre de la pista
-var letters; // paraula oculta en forma de _____
-var clueText; // text dins de clueBox
-var clueLetter = ""; // variable que guardarà la lletra de clueBox
-
-window.onload = function () {
-
-    divInfo = document.getElementById("info");
-    msgWelcome = document.getElementById("welcome");
-    msgGameSuccess = document.getElementById("game_success");
-    msgGameFail = document.getElementById("game_fail");
-    btnOk = document.getElementById("btn_ok");
-    newGameButton = document.getElementById("new_game");
-    clueBox = document.getElementById("clue");
-    livesText = document.getElementsByClassName("lives")[0];
+    // Assignació d'esdeveniments
     document.body.addEventListener("keydown", pressKey);
     newGameButton.addEventListener("click", restartGame);
-    btnOk.addEventListener("click", closeMessage);
-    //clueBox.addEventListener("mouseenter", giveClue);
-    //clueBox.addEventListener("mouseleave", cleanClueBox);
-    letters = document.getElementById("letters");
-    clueText = document.getElementById("clue").getElementsByTagName("span")[0];
-    letters.innerHTML = gameStatus.wordCompleted
 
-    devConsoleInfo();
-    showWelcomeMessage();
-};
+    function pressKey(event) {
+        var pressedKey = event.key.toUpperCase();
 
-// per ajudar a escollir una paraula dins l'array
-function getRandomNumber(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-// depenent de les vides i status del joc, mostrarem un missatge o un altre
-function showInfoMessage() {
-
-    if (gameStatus.lives >= 1 && gameStatus.status === "completed") {
-        divInfo.style.display = "block";
-        msgGameSuccess.style.display = "block";
-        btnOk.style.display = "block";
-    } else if (gameStatus.lives === 0 && gameStatus.status === "completed") {
-        divInfo.style.display = "block";
-        // al acabar la partida, el missatge de derrota mostra també la paraula buscada
-        msgGameFail.innerHTML = "No has salvat al monstre. Llàstima!<br> La paraula era:<br>" + gameStatus.wordToGuess.toUpperCase();
-        msgGameFail.style.display = "block";
-        btnOk.style.display = "block";
-    }
-}
-
-// funció del botó Continuar, tanca els missatges de showInfoMessage()
-function closeMessage() {
-
-    divInfo.style.display = "none";
-    msgWelcome.style.display = "none";
-    msgGameSuccess.style.display = "none";
-    msgGameFail.style.display = "none";
-    btnOk.style.display = "none";
-}
-
-// funcio de perdre una vida i actualitzar en funció d'aquesta l'imatge
-function loseLive() {
-    gameStatus.lives--;
-
-    if (gameStatus.lives < 1) {
-        gameStatus.status = "completed";
-        msgGameFail.style.display = "block";
-        btnOk.style.display = "block";
-
-        // cambiar a que se desactiven todos los listeners menos NEW GAME
-        clueBox.removeEventListener("mouseenter", giveClue);
-        document.body.removeEventListener("keydown", pressKey);
-
-    }
-
-    livesText.innerHTML = ("<br><br><br>" + gameStatus.lives + "<br> LIVES <br>LEFT");
-
-    if (gameStatus.lives < 5 && gameStatus.lives >= 0) {
-        document.getElementById("monster").src = ("img/monster" + gameStatus.lives + ".png");
-    }
-}
-
-// restem una vida i mostrem una lletra que no haguem encertat encara
-function giveClue() {
-
-    loseLive();
-
-    // com ensenyem una lletra no registrada ja?
-    do { // calculem una lletra aleatòria de la paraula fins que no sigui igual que les ja trobades
-        clueLetter = gameStatus.wordToGuess.charAt(getRandomNumber(0, gameStatus.wordToGuess.length));
-    } while (gameStatus.wordCompleted.includes(clueLetter));
-
-    clueText.innerHTML = clueLetter;
-
-    devConsoleInfo();
-    showInfoMessage();
-}
-
-// al moure el ratolí fora de la capsa de pista, aquesta torna a mostrar '?'
-function cleanClueBox() {
-    clueText.innerHTML = "?";
-}
-
-// funció del teclat
-function pressKey(event) {
-    // guardem la tecla premuda en una variable
-    pressedKey = event.key.toUpperCase();
-
-    // if per admetre només lletres del teclat, descartem F4's..., Controls i Alts
-    if (!/^[A-Z]$/i.test(pressedKey)) {
-        return;
-    }
-
-    // ara, si la lletra está a la paraula, la cambien el seu _ per la lletra
-    if (gameStatus.wordToGuess.includes(pressedKey)) {
-        for (let i = 0; i < gameStatus.wordToGuess.length; i++) {
-            if (gameStatus.wordToGuess[i] === pressedKey) {
-                gameStatus.wordCompleted = gameStatus.wordCompleted.substring(0, i) + pressedKey + gameStatus.wordCompleted.substring(i + 1);
-                letters.innerHTML = gameStatus.wordCompleted;
-            }
+        if (!/^[A-Z]$/i.test(pressedKey)) {
+            return;
         }
-    } else if (!(gameStatus.wordToGuess.includes(pressedKey))) { // si no está la lletra a la paraula perdem una vida
-        loseLive();
+
+        // Construir l'objecte JSON a enviar
+        var playData = {
+            "action": "playGame",
+            "gameName": roomCode,
+            "word": pressedKey,
+            "player": (clueText.innerHTML === "P1") ? "P1" : "P2"
+        };
+
+        var xhrPlayGame = new XMLHttpRequest();
+        xhrPlayGame.open("POST", "https://penjat.codifi.cat", true);
+        xhrPlayGame.setRequestHeader("Content-Type", "application/json");
+        xhrPlayGame.onreadystatechange = function () {
+            if (xhrPlayGame.readyState === 4) {
+                if (xhrPlayGame.status === 200) {
+                    var jsonResponse = JSON.parse(xhrPlayGame.responseText);
+                    if (jsonResponse.status === "OK") {
+                        // La paraula és correcta
+                        console.log("Paraula correcta. El jugador " + playData.player + " ha salvat la seva vida fins ara.");
+                        if (playData.player === "P1" || playData.player === "P2") {
+                            actualizarEstadoJuego(); // Realitzar sol·licitud d'actualització de l'estat del joc
+                        }
+                    } else {
+                        // La paraula és incorrecta
+                        console.log("Paraula incorrecta. El jugador " + playData.player + " perd una vida.");
+                        // Actualitzar vides i mostrar a la interfície gràfica
+                        lives--;
+                        livesText.innerHTML = (lives + "<br> LIVES <br>LEFT");
+
+                        if (lives === 0) {
+                            alert("Has perdut la partida!");
+                        }
+                    }
+                } else {
+                    console.error("Error en la sol·licitud AJAX: " + xhrPlayGame.status);
+                }
+            }
+        };
+        xhrPlayGame.send(JSON.stringify(playData));
     }
 
-    // tant com si no tenim vides com si hem completat wordCompleted, status = completed
-    if (gameStatus.lives === 0) {
-        gameStatus.status = "completed";
-        showInfoMessage();
-    } else if (gameStatus.wordToGuess === gameStatus.wordCompleted) {
-        gameStatus.status = "completed";
-        // eliminem el listener del botó continuar
-        btnOk.removeEventListener("click", closeMessage);
-
-        // Per a que canvii a un que reinicia la página
-        btnOk.addEventListener("click", restartGame);
-        showInfoMessage();
+    // Funció per reiniciar el joc
+    function restartGame() {
+        window.location.reload();
     }
-    devConsoleInfo();
-}
 
-// missatges de la consola per al desenvolupador
-function devConsoleInfo() {
-    console.log("\n Status: " + gameStatus.status +
-        "\n Lives: " + gameStatus.lives +
-        "\n wordToGuess: " + gameStatus.wordToGuess +
-        "\n wordCompleted: " + gameStatus.wordCompleted +
-        "\n clueLetter: " + clueLetter);
-}
+    // Funció per actualitzar l'estat del joc
+    function updateGameState(response) {
+        gameStatus = response.gameInfo;
+        letters.innerHTML = gameStatus.wordCompleted;
+    }
 
-// funció que reinicia el joc, li asignem a continuar si hem acabat
-function restartGame() {
-    window.location.reload();
-}
+    // Funció per actualitzar l'estat del joc després de realitzar una jugada
+    function actualizarEstadoJuego() {
+        var xhrUpdateGame = new XMLHttpRequest();
+        xhrUpdateGame.open("POST", "https://penjat.codifi.cat", true);
+        xhrUpdateGame.setRequestHeader("Content-Type", "application/json");
+        xhrUpdateGame.onreadystatechange = function () {
+            if (xhrUpdateGame.readyState === 4 && xhrUpdateGame.status === 200) {
+                var jsonResponse = JSON.parse(xhrUpdateGame.responseText);
+                updateGameState(jsonResponse);
+            }
+        };
+        xhrUpdateGame.send(JSON.stringify({ "action": "infoGame", "gameName": roomCode }));
+    }
 
-function showWelcomeMessage() {
-    divInfo.style.display = "block";
-    msgWelcome.style.display = "block";
-    btnOk.style.display = "block";
-}
+});
